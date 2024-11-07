@@ -1,3 +1,4 @@
+
 # Soil Moisture Monitoring System with STM32F4 and Bluetooth Communication
 
 ## Project Overview
@@ -45,11 +46,10 @@ This project implements a soil moisture monitoring system using an STM32F4 micro
 This project is part of the coursework for **[19CSE303: Embedded Systems]**.
 
 ### Team Members
-CB.EN.U4CSE22425 Nair Divya Premchandrakumar
-CB.EN.U4CSE22434 Rohit Vishnu P
-CB.EN.U4CSE22435 Riya Rajesh
+CB.EN.U4CSE22425 Nair Divya Premchandrakumar  
+CB.EN.U4CSE22434 Rohit Vishnu P  
+CB.EN.U4CSE22435 Riya Rajesh  
 CB.EN.U4CSE22460 Samyuktha BM
-
 
 **Department of Computer Science and Engineering**  
 Amrita School of Computing,  
