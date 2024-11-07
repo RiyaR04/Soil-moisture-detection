@@ -1,0 +1,148 @@
+#include "stm32f4xx.h"
+#include <stdio.h>
+#include <string.h>
+
+#define LED_PIN_RED 5
+#define LED_PIN_GREEN 3
+#define LED_PIN_BLUE 1
+#define ADC_CHANNEL 7 // Assuming the moisture sensor is connected to ADC channel 7 (PA7)
+#define SENSOR_POWER_PIN 1 // B1 pin for powering the sensor
+
+void SystemClock_Config(void);
+void GPIO_Init(void);
+void USART1_Init(void);
+void ADC1_Init(void);
+void USART1_SendString(const char* str);
+void USART1_WriteChar(char c);
+uint16_t ADC_Read(void);
+void TIM2_Init(void); // Timer initialization function
+void TIM2_IRQHandler(void); // Timer interrupt handler
+void ADC_IRQHandler(void); // ADC interrupt handler
+
+volatile uint16_t readValue;
+char buffer[50];
+char *demo_string = "_Hello, Bluetooth\r\n";
+
+int main(void) {
+    // Initialize system clock, GPIO, UART, ADC, and Timer
+    SystemClock_Config();
+    GPIO_Init();
+    USART1_Init();
+    ADC1_Init();
+    TIM2_Init();
+    
+    // Transmit initial message
+    USART1_SendString(demo_string);
+
+    // Start the first ADC conversion
+    ADC1->CR2 |= (1 << 30); // Start conversion
+
+    while (1) {
+        
+    }
+}
+
+void GPIO_Init(void) {
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;  // Enable GPIOA clock
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;  // Enable GPIOC clock
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;  // Enable GPIOB clock
+
+    // Set PA1, PA3, and PA5 as output for LEDs
+    GPIOA->MODER |= (1U << (LED_PIN_RED * 2)) | (1U << (LED_PIN_GREEN * 2)) | (1U << (LED_PIN_BLUE * 2));
+
+    // Set PA7 to analog mode for ADC input
+    GPIOA->MODER |= (1U << 14) | (1U << 15);
+    
+    // Set PB1 as output for sensor power
+    GPIOB->MODER |= (1U << (SENSOR_POWER_PIN * 2)); // Set PB1 to output mode
+}
+
+void USART1_Init(void) {
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN; // Enable USART1 clock
+
+    // Configure PA9 (TX) and PA10 (RX) as alternate function for USART1
+    GPIOA->MODER |= (2U << 18) | (2U << 20); // Set PA9, PA10 to AF mode
+    GPIOA->AFR[1] |= (7U << 4) | (7U << 8);  // Set PA9, PA10 to AF7 (USART1)
+    
+    USART1->BRR = 0x0683;                     // Baud rate 9600
+    USART1->CR1 = (1U << 3) | (1U << 2) | (1U << 13); // Enable TX, RX, and USART1
+}
+
+void USART1_SendString(const char* str) {
+    while (*str) {
+        USART1_WriteChar(*str++);
+    }
+}
+
+void USART1_WriteChar(char c) {
+    while (!(USART1->SR & USART_SR_TXE)) {}  // Wait until TXE
+    USART1->DR = c;
+}
+
+void ADC1_Init(void) {
+    RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;      // Enable ADC1 clock
+    
+    ADC1->SMPR2 = 0;                         // Set sampling time to 3 cycles
+    ADC->CCR = 0;                            // ADC prescaler PCLK2/2 (default)
+    ADC1->CR1 = 0;                           // Reset CR1
+    ADC1->CR2 = 0;                           // Reset CR2
+    ADC1->CR2 |= (1U << 1);                  // Enable continuous mode
+    ADC1->SQR3 = ADC_CHANNEL;                // Select channel for ADC
+    ADC1->SQR1 = 0;                          // Sequence length 1
+    ADC1->CR2 |= 1;                          // Enable ADC by setting ADON bit
+    
+    while (!(ADC1->CR2 & 1)) {}              // Wait until ADC is ready
+}
+
+uint16_t ADC_Read(void) {
+    ADC1->CR2 |= (1 << 30);                  // Start the conversion
+    while (!(ADC1->SR & (1 << 1))) {}        // Wait until ADC conversion complete
+    return ADC1->DR;                         // Read ADC value
+}
+
+void TIM2_Init(void) {
+    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;     // Enable TIM2 clock
+
+    TIM2->PSC = 8399;                        // Prescaler value (84 MHz / 8400 = 10 kHz)
+    TIM2->ARR = 10000;                       // Auto-reload value (10 kHz * 10 s = 100000)
+    TIM2->DIER |= TIM_DIER_UIE;              // Enable update interrupt
+    TIM2->CR1 |= TIM_CR1_CEN;                // Start timer
+    NVIC_EnableIRQ(TIM2_IRQn);               // Enable TIM2 interrupt in NVIC
+}
+
+void TIM2_IRQHandler(void) {
+    if (TIM2->SR & TIM_SR_UIF) {              // Check if update interrupt flag is set
+        TIM2->SR &= ~TIM_SR_UIF;              // Clear the update interrupt flag
+
+        // Power on the sensor
+        GPIOB->ODR |= (1U << SENSOR_POWER_PIN); // Turn on sensor power
+
+        // Perform ADC read and send data via Bluetooth
+        readValue = ADC_Read();               // Read the ADC value
+
+        // Logic to turn on LEDs based on ADC value and prepare Bluetooth message
+        if (readValue > 100) {
+            GPIOA->ODR |= (1U << LED_PIN_RED);     // High moisture: Red LED
+            GPIOA->ODR &= ~((1U << LED_PIN_GREEN) | (1U << LED_PIN_BLUE)); // Turn off other LEDs
+            sprintf(buffer, "High Moisture: %d\r\n", readValue);
+        } else if (readValue > 40 && readValue <= 100) {
+            GPIOA->ODR |= (1U << LED_PIN_GREEN);   // Medium moisture: Green LED
+            GPIOA->ODR &= ~((1U << LED_PIN_RED) | (1U << LED_PIN_BLUE));    // Turn off other LEDs
+            sprintf(buffer, "Medium Moisture: %d\r\n", readValue);
+        } else {
+            GPIOA->ODR |= (1U << LED_PIN_BLUE);    // Low moisture: Blue LED
+            GPIOA->ODR &= ~((1U << LED_PIN_RED) | (1U << LED_PIN_GREEN));   // Turn off other LEDs
+            sprintf(buffer, "Low Moisture: %d\r\n", readValue);
+        }
+
+        // Send moisture level message via Bluetooth
+        USART1_SendString(buffer);
+
+        // Power off the sensor after reading
+        GPIOB->ODR &= ~(1U << SENSOR_POWER_PIN); // Turn off sensor power
+    }
+}
+
+void SystemClock_Config(void) {
+    // System clock configuration as needed
+}
