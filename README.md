@@ -4,6 +4,10 @@
 ## Project Overview
 This project implements a soil moisture monitoring system using an STM32F4 microcontroller. The system measures soil moisture levels with an analog sensor connected to an ADC channel, providing visual feedback through LEDs and sending data to a Bluetooth-enabled device for remote monitoring. The sensor power is controlled to conserve energy, and ADC readings are taken periodically and transmitted via Bluetooth.
 
+
+https://github.com/user-attachments/assets/bf65b913-da0d-4557-be7b-4725e964e64d
+
+
 ## Features
 - **Moisture Level Detection**: The system reads soil moisture levels using an analog soil moisture sensor.
 - **LED Indicators**: Three LEDs indicate the soil moisture status:
