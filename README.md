@@ -23,6 +23,7 @@ https://github.com/user-attachments/assets/bf65b913-da0d-4557-be7b-4725e964e64d
 3. **LEDs**: Three LEDs are connected to GPIO pins on PA1 (Blue), PA3 (Green), and PA5 (Red).
 4. **HC-05 Bluetooth Module**: Used to transmit soil moisture readings.
 5. **Power Control**: The sensor power is controlled using GPIO pin PB1.
+![WhatsApp Image 2024-11-04 at 22 24 47_f458d119](https://github.com/user-attachments/assets/e964603d-317e-4550-ad0b-0ac4561f0cd7)
 
 ## Software Configuration
 - **USART for Bluetooth**: Configured to communicate with the HC-05 module for data transmission.
